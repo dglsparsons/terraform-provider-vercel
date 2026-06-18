@@ -1793,9 +1793,9 @@ func (t *OptionsAllowlist) toUpdateProjectRequest() *client.OptionsAllowlist {
 /*
 * In the Vercel API the following fields are coerced to null during project creation
 
-* This causes an issue when they are specified, but falsy, as the
-* terraform configuration explicitly sets a value for them, but the Vercel
-* API returns a different value. This causes an inconsistent plan error.
+* This causes an issue when the terraform configuration explicitly sets a
+* value for them, but the Vercel API returns a different value. This causes an
+* inconsistent plan error.
 
 * We avoid this issue by choosing to use values from the terraform state,
 * but only if they are _explicitly stated_ *and* they are _falsy_ values
@@ -2137,6 +2137,12 @@ func convertResponseToProject(ctx context.Context, response client.ProjectRespon
 		buildMachineType = types.StringValue(response.ResourceConfig.BuildMachineType)
 	}
 
+	// The create-project response can omit publicSource even when Terraform configured it.
+	publicSource := types.BoolPointerValue(response.PublicSource)
+	if publicSource.IsNull() && knownBool(fields.PublicSource) {
+		publicSource = fields.PublicSource
+	}
+
 	return Project{
 		BuildCommand:                      uncoerceString(fields.BuildCommand, types.StringPointerValue(response.BuildCommand)),
 		DevCommand:                        uncoerceString(fields.DevCommand, types.StringPointerValue(response.DevCommand)),
@@ -2149,7 +2155,7 @@ func convertResponseToProject(ctx context.Context, response client.ProjectRespon
 		Name:                              types.StringValue(response.Name),
 		OutputDirectory:                   uncoerceString(fields.OutputDirectory, types.StringPointerValue(response.OutputDirectory)),
 		PreviewDeploymentSuffix:           types.StringPointerValue(response.PreviewDeploymentSuffix),
-		PublicSource:                      uncoerceBool(fields.PublicSource, types.BoolPointerValue(response.PublicSource)),
+		PublicSource:                      publicSource,
 		RootDirectory:                     types.StringPointerValue(response.RootDirectory),
 		ServerlessFunctionRegion:          serverlessFunctionRegion,
 		TeamID:                            toTeamID(response.TeamID),
